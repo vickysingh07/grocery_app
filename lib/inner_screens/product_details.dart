@@ -1,4 +1,5 @@
 import 'package:fancy_shimmer_image/fancy_shimmer_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,10 +7,12 @@ import 'package:flutter_iconly/flutter_iconly.dart';
 import 'package:grocery_app/widgets/heart_btn.dart';
 import 'package:provider/provider.dart';
 
+import '../consts/firebase_consts.dart';
 import '../providers/cart_provider.dart';
 import '../providers/products_provider.dart';
 import '../providers/viewed_prod_provider.dart';
 import '../providers/wishlist_provider.dart';
+import '../services/global_methods.dart';
 import '../services/utils.dart';
 import '../widgets/text_widget.dart';
 
@@ -36,11 +39,13 @@ class _ProductDetailsState extends State<ProductDetails> {
   Widget build(BuildContext context) {
     Size size = Utils(context).getScreenSize;
     final Color color = Utils(context).color;
-    final productProvider = Provider.of<ProductsProvider>(context);
+
     final cartProvider = Provider.of<CartProvider>(context);
     final wishlistProvider = Provider.of<WishlistProvider>(context);
     final productId = ModalRoute.of(context)!.settings.arguments as String;
+    final productProvider = Provider.of<ProductsProvider>(context);
     final getCurrProduct = productProvider.findProdById(productId);
+
     double usedPrice = getCurrProduct.isOnSale
         ? getCurrProduct.salePrice
         : getCurrProduct.price;
@@ -288,14 +293,30 @@ class _ProductDetailsState extends State<ProductDetails> {
                             child: InkWell(
                               onTap: _isInCart
                                   ? null
-                                  : () {
+                                  : () async {
                                       // if (_isInCart) {
                                       //   return;
                                       // }
-                                      cartProvider.addProductsToCart(
+                                      final User? user =
+                                          authInstance.currentUser;
+
+                                      if (user == null) {
+                                        GlobalMethods.errorDialog(
+                                            subtitle:
+                                                'No user found, Please login first',
+                                            context: context);
+                                        return;
+                                      }
+                                      await GlobalMethods.addToCart(
                                           productId: getCurrProduct.id,
                                           quantity: int.parse(
-                                              _quantityTextController.text));
+                                              _quantityTextController.text),
+                                          context: context);
+                                      await cartProvider.fetchCart();
+                                      // cartProvider.addProductsToCart(
+                                      //     productId: getCurrProduct.id,
+                                      //     quantity: int.parse(
+                                      //         _quantityTextController.text));
                                     },
                               borderRadius: BorderRadius.circular(10),
                               child: Padding(
